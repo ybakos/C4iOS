@@ -98,7 +98,7 @@ public class C4Shape: C4View {
     @IBInspectable
     public var lineWidth: Double {
         get { return Double(shapeLayer.lineWidth) }
-        set(width) { shapeLayer.lineWidth = CGFloat(width); updatePath(); }
+        set(width) { shapeLayer.lineWidth = CGFloat(width); }
     }
     
     /**

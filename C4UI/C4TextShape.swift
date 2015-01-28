@@ -24,27 +24,47 @@ import Foundation
 
 public class C4TextShape : C4Shape {
     convenience public init(text: String, font: C4Font) {
+        //create a mutable path to hold individual character paths
         let textPath = CGPathCreateMutable()
-        let ctfont = font.CTFont
-        var unichars = [UniChar](text.utf16)
-        var glyphs = [CGGlyph](count: unichars.count, repeatedValue: 0)
-        let count = unichars.count
 
+        let ctfont = font.CTFont
+        
+        //get the unichar array from the text
+        var unichars = [UniChar](text.utf16)
+        
+        //allocate an empty glyph array
+        var glyphs = [CGGlyph](count: unichars.count, repeatedValue: 0)
+
+        //attempt to get the actualy glyphs for the unicode characters
         if CTFontGetGlyphsForCharacters(ctfont, &unichars, &glyphs, unichars.count) {
+            //if successful
+            
+            //create an invert transform
             var invert = CGAffineTransformMakeScale(1,-1)
+            
+            //create an origin point to keep track of the new glphy path position
             var origin = CGPointZero
+            
+            //for each glyph
             for glyph in glyphs {
+                //create a path for the current glyph
                 let currentPath = CTFontCreatePathForGlyph(ctfont, glyph, &invert)
+                //create an array
                 var glyphArr = [glyph]
+                //create a translation for the current glyph path
                 var translation = CGAffineTransformMakeTranslation(origin.x, origin.y);
+                //add the current path, with the translation, to the mutable textPath
                 CGPathAddPath(textPath, &translation, currentPath)
+                //calculate the advance for the current glyph
                 var advance = CTFontGetAdvancesForGlyphs(ctfont, .OrientationDefault, &glyphArr, nil, 1);
+                //update the origin for the new glyph
                 origin.x += CGFloat(advance)
             }
         }
         
-        var stringRect = CGPathGetBoundingBox(textPath)
-        self.init(frame: C4Rect(stringRect))
+        //continue with initialization
+        var frame = CGPathGetBoundingBox(textPath)
+        self.init(frame: C4Rect(frame))
         self.path = C4Path(path: textPath)
         adjustToFitPath()
         self.origin = C4Point(0,0)

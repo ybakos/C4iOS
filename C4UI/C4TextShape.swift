@@ -24,35 +24,48 @@ import Foundation
 
 public class C4TextShape : C4Shape {
     convenience public init(text: String, font: C4Font) {
-        var t = CGAffineTransformMakeScale(1,-1)
-        let glyphPaths = CGPathCreateMutable()
+        //create a mutable path to hold individual character paths
+        let textPath = CGPathCreateMutable()
+
         let ctfont = font.CTFont
         
-        var currentOrigin = CGPointZero
+        //get the unichar array from the text
+        var unichars = [UniChar](text.utf16)
         
-        for character in text {
+        //allocate an empty glyph array
+        var glyphs = [CGGlyph](count: unichars.count, repeatedValue: 0)
+
+        //attempt to get the actualy glyphs for the unicode characters
+        if CTFontGetGlyphsForCharacters(ctfont, &unichars, &glyphs, unichars.count) {
+            //if successful
             
-            let str = String(character)
-            let cfstr = str as CFString
-            var glyph = CTFontGetGlyphWithName(ctfont, cfstr)
-            var path = withUnsafePointer(&t) { (pointer: UnsafePointer<CGAffineTransform>) -> (CGPath) in
-                return CTFontCreatePathForGlyph(ctfont, glyph, pointer)
+            //create an invert transform
+            var invert = CGAffineTransformMakeScale(1,-1)
+            
+            //create an origin point to keep track of the new glphy path position
+            var origin = CGPointZero
+            
+            //for each glyph
+            for glyph in glyphs {
+                //create a path for the current glyph
+                let currentPath = CTFontCreatePathForGlyph(ctfont, glyph, &invert)
+                //create an array
+                var glyphArr = [glyph]
+                //create a translation for the current glyph path
+                var translation = CGAffineTransformMakeTranslation(origin.x, origin.y);
+                //add the current path, with the translation, to the mutable textPath
+                CGPathAddPath(textPath, &translation, currentPath)
+                //calculate the advance for the current glyph
+                var advance = CTFontGetAdvancesForGlyphs(ctfont, .OrientationDefault, &glyphArr, nil, 1);
+                //update the origin for the new glyph
+                origin.x += CGFloat(advance)
             }
-            
-            var translation = CGAffineTransformMakeTranslation(currentOrigin.x, currentOrigin.y);
-            CGPathAddPath(glyphPaths, &translation, path);
-            
-            
-            var advance = withUnsafePointer(&glyph) {(glyphePointer: UnsafePointer<CGGlyph>) -> (Double) in
-                return CTFontGetAdvancesForGlyphs(ctfont, .OrientationDefault, &glyph, nil, 1);
-            }
-            
-            currentOrigin.x += CGFloat(advance);
         }
         
-        var stringRect = CGPathGetBoundingBox(glyphPaths)
-        self.init(frame: C4Rect(stringRect))
-        self.path = C4Path(path: glyphPaths)
+        //continue with initialization
+        var frame = CGPathGetBoundingBox(textPath)
+        self.init(frame: C4Rect(frame))
+        self.path = C4Path(path: textPath)
         adjustToFitPath()
         self.origin = C4Point(0,0)
     }
